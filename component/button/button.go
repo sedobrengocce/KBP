@@ -21,16 +21,20 @@ func NewButton(text string, action func() (any, error)) *Button {
     }
 }
 
-func (b *Button) SetActive() {
+func (b *Button) Focus() {
     b.isActive = true
 }
 
-func (b *Button) SetInactive() {
+func (b *Button) Blur() {
     b.isActive = false
 }
 
 func (b *Button) Click() (any, error) {
     return b.action()
+}
+
+func (b Button) IsActive() bool {
+    return b.isActive
 }
 
 func (b Button) Render() string {

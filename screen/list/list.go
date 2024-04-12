@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"kaban-board-plus/common/component"
 	mesg "kaban-board-plus/common/msg"
+	"kaban-board-plus/component/button"
+	"kaban-board-plus/component/dialog"
 	"log"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -31,6 +33,8 @@ type List struct {
     width int
 }
 
+var dlg *dialog.Dialog
+
 func (l *List) ToggleHelp() {
     l.showHelp = !l.showHelp
 }
@@ -54,33 +58,48 @@ func NewList(db *sql.DB) *List {
 }
 
 func (l *List) getBoardList() tea.Cmd {
-    var rows *sql.Rows
-    var err error
-    rows, err = l.db.Query("SELECT id, name FROM boards")
+    rows, err := l.db.Query("SELECT id, name FROM boards")
     if err != nil {
         log.Print("Error getting boards: ", err)
         return mesg.NewErrorMsg(err)
     }
     defer rows.Close()
-    var bl []list.Item
+    var bl []boardElement
     for rows.Next() {
         var id int
         var name string
         err = rows.Scan(&id, &name)
-        log.Print("Board: ", id, name)
         if err != nil {
             log.Print("Error getting boards: ", err)
         return mesg.NewErrorMsg(err)
         }
         b := newBoardElement(id, name)
-        bl = append(bl, b)
+        bl = append(bl, *b)
     }
-    cmd := l.list.SetItems(bl)
+    var newItems []list.Item
+    for _, item := range bl {
+        newItems = append(newItems, item)
+    }
+    cmd := l.list.SetItems(newItems)
     return cmd
 }
 
+func (l *List) deleteBoard(board_id int) tea.Cmd {
+    _, err := l.db.Exec("DELETE FROM tasks WHERE board_id=?", board_id)
+    if err != nil {
+        log.Print("Error deleting tasks: ", err)
+        return mesg.NewErrorMsg(err)
+    }
+    _, err = l.db.Exec("DELETE FROM boards WHERE id=?", board_id)
+    if err != nil {
+        log.Print("Error dele board: ", err)
+        return mesg.NewErrorMsg(err)
+    }
+    return NewUpdateListMsg()
+}
+
 func (l *List) SetSize(width, height int) {
-    l.width = width / widthGrow
+    l.width = width
     l.height = height - heightMargin
     l.list.SetSize(l.width, l.height)
 }
@@ -90,8 +109,38 @@ func (l *List) Init() tea.Cmd {
     return cmd
 }
 
+func (l List) askDeleteBoard() *dialog.Dialog {
+    item := l.list.SelectedItem()
+    if item == nil {
+        return nil
+    }
+    selectedItem := item.(boardElement)
+    yesButton := button.NewButton("Yes", func() (any, error) {
+        closeDialog()
+        return NewDeleteBoardMsg(selectedItem.id), nil
+    })
+    noButton := button.NewButton("No", func() (any, error) {
+        closeDialog()
+        return nil, nil
+    })
+    noButton.Focus()
+    d := dialog.NewDialog("Delete Board", "Are you sure you want to delete " + selectedItem.Title() + " board?", 40, 10, 1, []button.Button{
+        *yesButton,
+        *noButton,
+    })
+    return d
+}
+
 func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
+    if dlg != nil {
+        cmd := dlg.Update(msg)
+        return &l, cmd
+    }
     switch msg := msg.(type) {
+        case UpdateListMsg:
+            return &l, l.getBoardList()
+        case DeleteBoardMsg:
+            return &l, l.deleteBoard(msg.board_id)
         case tea.KeyMsg:
             switch {
                 case key.Matches(msg, keys.Enter):
@@ -101,19 +150,21 @@ func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
                     }
                     return &l, mesg.NewSelectBoardMsg(item.(boardElement).id)
                 case key.Matches(msg, keys.DeleteBoard):
+                    dlg = l.askDeleteBoard()
                     return &l, nil
                 case key.Matches(msg, keys.NewBoard):
                     return &l, nil
                 }
             }
-    _, cmd := l.list.Update(msg)
+    bl, cmd := l.list.Update(msg)
+    l.list = bl
     return &l, cmd
 }
 
 func (l List) View() string {
     brdList := BoardListColumnStyle.
         Height(l.height).
-        Width(l.width).
+        Width(l.width / widthGrow).
         Render(l.list.View())
 
     var help string
@@ -130,10 +181,24 @@ func (l List) View() string {
         preview,
     )
 
+    if dlg != nil {
+        return lipgloss.Place(
+            l.width,
+            l.height,
+            lipgloss.Center,
+            lipgloss.Center,
+            dlg.Render(),
+        )
+    }
+
     return lipgloss.JoinVertical(
         lipgloss.Left, 
         main,
         help,
     )
+}
+
+func closeDialog() {
+    dlg = nil
 }
 
