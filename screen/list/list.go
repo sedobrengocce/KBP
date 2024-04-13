@@ -115,11 +115,11 @@ func (l List) askDeleteBoard() *dialog.Dialog {
         return nil
     }
     selectedItem := item.(boardElement)
-    yesButton := button.NewButton("Yes", func() (any, error) {
+    yesButton := button.NewButton("Yes", func() (tea.Cmd, error) {
         closeDialog()
         return NewDeleteBoardMsg(selectedItem.id), nil
     })
-    noButton := button.NewButton("No", func() (any, error) {
+    noButton := button.NewButton("No", func() (tea.Cmd, error) {
         closeDialog()
         return nil, nil
     })

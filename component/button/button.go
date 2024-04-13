@@ -1,6 +1,9 @@
 package button
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
     activeButtonStyle = lipgloss.NewStyle().Padding(1,2).Background(lipgloss.Color("#FF9800")).Foreground(lipgloss.Color("#000000"))
@@ -9,11 +12,11 @@ var (
 
 type Button struct {
     text string
-    action func() (any, error)
+    action func() (tea.Cmd, error)
     isActive bool
 }
 
-func NewButton(text string, action func() (any, error)) *Button {
+func NewButton(text string, action func() (tea.Cmd, error)) *Button {
     return &Button{
         text: text,
         action: action,
