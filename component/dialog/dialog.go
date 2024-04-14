@@ -5,6 +5,7 @@ import (
 	mesg "kaban-board-plus/common/msg"
 	"kaban-board-plus/component/button"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -31,19 +32,25 @@ var (
     Align(lipgloss.Center)
 )
 
+type DialogComponent interface {
+    update(msg tea.Msg) tea.Cmd 
+    render() string
+}
+
 type Dialog struct {
     title string
-    message string
+    content []DialogComponent
+    help help.Model
     width int
     height int
     buttons []button.Button
     focusedButton int
 }
 
-func NewDialog(title, message string, width, height, focusedButton int, buttons []button.Button) *Dialog {
+func NewDialog(title string, components []DialogComponent, width, height, focusedButton int, buttons []button.Button) *Dialog {
     return &Dialog{
         title: title,
-        message: message,
+        content: components,
         width: width,
         height: height,
         buttons: buttons,
@@ -68,26 +75,38 @@ func (d Dialog) Click() (any, error) {
 }
 
 func (d *Dialog) Update(msg tea.Msg) tea.Cmd {
+    var cmds []tea.Cmd
+    for _, c := range d.content {
+        cmd := c.update(msg)
+        if cmd != nil {
+            cmds = append(cmds, cmd)
+        }
+    }
     switch msg := msg.(type) {
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Enter):
             any, err := d.Click()
             if err != nil {
-                return mesg.NewErrorMsg(err)
+                cmd := mesg.NewErrorMsg(err)
+                cmds = append(cmds, cmd)
+                return tea.Batch(cmds...)
             }
             cmd, ok := any.(tea.Cmd)
             if !ok{
-                return mesg.NewErrorMsg(errors.New("Invalid command"))
+                cmd = mesg.NewErrorMsg(errors.New("Invalid command"))
+                cmds = append(cmds, cmd)
+                return tea.Batch(cmds...)
             }
-            return cmd
+            cmds = append(cmds, cmd)
+            return tea.Batch(cmds...)
         case key.Matches(msg, keys.Left):
             d.PrevButton()
         case key.Matches(msg, keys.Right):
             d.NextButton()
         }
     }
-    return nil
+    return tea.Batch(cmds...)
 }
 
 func (d Dialog) Render() string {
@@ -96,7 +115,25 @@ func (d Dialog) Render() string {
         buttons = append(buttons, b.Render())
         buttons = append(buttons, "    ")
     }
-    btnLine := lipgloss.JoinHorizontal(lipgloss.Top, buttons...)
-    content := lipgloss.JoinVertical(lipgloss.Center, titleStyle.Render(d.title)," ", messageStyle.Render(d.message), " ", " ", btnLine)
-    return lipgloss.Place(d.width, d.height, lipgloss.Center, lipgloss.Center, dialogBoxStyle.Render(content)) 
+    content := []string{}
+    content = append(content, titleStyle.Render(d.title))
+    content = append(content, " ")
+    for _, c := range d.content {
+        content = append(content, messageStyle.Render(c.render()))
+    }
+    content = append(content, " ")
+    content = append(content, " ")
+        btnLine := lipgloss.JoinHorizontal(
+        lipgloss.Top, 
+        buttons...
+    )
+    content = append(content, btnLine)
+    renderedContent := lipgloss.JoinVertical(
+        lipgloss.Center, 
+        content..., 
+    )
+    return lipgloss.Place(d.width, d.height, 
+        lipgloss.Center, lipgloss.Center, 
+        dialogBoxStyle.Render(renderedContent),
+    ) 
 }
