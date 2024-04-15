@@ -3,8 +3,11 @@ package app
 import (
 	"database/sql"
 	"kaban-board-plus/common/component"
+	mesg "kaban-board-plus/common/msg"
 	"kaban-board-plus/screen/board"
 	"kaban-board-plus/screen/list"
+	"log"
+	"strconv"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -63,6 +66,27 @@ func (k KabanBoardPlus) Init() tea.Cmd {
     return newInitialMsg()
 }
 
+func (k KabanBoardPlus) getBoardName(id int) (string, error) {
+    rows, err := k.db.Query("SELECT name FROM boards WHERE id=?", id)
+    if err != nil {
+        log.Print("Error retrieving board name: ", err)
+        return "", err
+    }
+     
+    defer rows.Close()
+
+    var name string
+    for rows.Next() {
+        err = rows.Scan(&name)
+        if err != nil {
+            log.Print("Error reading board name: ", err)
+            return "", err
+        }
+    }
+
+    return name, nil
+}
+
 func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     var cmd tea.Cmd
     var s component.Screen
@@ -90,6 +114,17 @@ func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         k.screen = todayScreen
         k.model = todayBoard 
         return k, tea.Batch(cmds...)
+    case mesg.SelectBoardMsg:
+        log.Print("Selected board " + strconv.Itoa(m.Id))
+        name, err := k.getBoardName(m.Id)
+        if err != nil {
+            return k, mesg.NewErrorMsg(err)
+        }
+        brd := board.NewBoard(m.Id, name, k.db)
+        cmd := brd.Init()
+        k.screen = boardListScreen
+        k.model = brd
+        return k, cmd
     case tea.WindowSizeMsg:
         if(todayBoard != nil) {
             todayBoard.SetSize(m.Width, m.Height)
