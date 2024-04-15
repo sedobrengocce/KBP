@@ -7,7 +7,6 @@ import (
 	"kaban-board-plus/screen/board"
 	"kaban-board-plus/screen/list"
 	"log"
-	"strconv"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -115,13 +114,13 @@ func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         k.model = todayBoard 
         return k, tea.Batch(cmds...)
     case mesg.SelectBoardMsg:
-        log.Print("Selected board " + strconv.Itoa(m.Id))
         name, err := k.getBoardName(m.Id)
         if err != nil {
             return k, mesg.NewErrorMsg(err)
         }
-        brd := board.NewBoard(m.Id, name, k.db)
+        brd := board.NewProjectBoard(m.Id, name, k.db)
         cmd := brd.Init()
+        brd.SetSize(k.width, k.height)
         k.screen = boardListScreen
         k.model = brd
         return k, cmd

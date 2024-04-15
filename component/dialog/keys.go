@@ -17,6 +17,7 @@ type keyMap struct {
 	Left     key.Binding
 	Right   key.Binding
 	Enter  key.Binding
+    Tab     key.Binding
 }
 
 var keys = keyMap{
@@ -30,7 +31,11 @@ var keys = keyMap{
 	),
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "select board"),
+		key.WithHelp("enter", "confirm selection"),
+	),
+	Tab: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next input"),
 	),
 }
 

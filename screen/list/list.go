@@ -137,7 +137,7 @@ func (l *List) askDeleteBoard() *dialog.Dialog {
     noButton.Focus()
     d := dialog.NewDialog("Delete Board", 
         []dialog.DialogComponent{message}, 
-        40, 10, 1, 
+        40, 10,
         []button.Button{
             *yesButton,
             *noButton,
@@ -159,7 +159,7 @@ func (l List) askCreateBoard() *dialog.Dialog {
     })    
     d := dialog.NewDialog("Create new Board", 
         []dialog.DialogComponent{titleInput},
-        40, 10, 1, 
+        40, 10,
         []button.Button{
             *confirmButton,
             *cancelButton,
