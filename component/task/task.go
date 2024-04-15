@@ -1,5 +1,7 @@
 package task
 
+import componet "kaban-board-plus/common/component"
+
 type Status int
 
 type Priority int
@@ -22,35 +24,21 @@ type Task struct {
     description string
     priority Priority
     isArchived bool
-    dueDate string
+    completedDate componet.CompletedDate
     status Status
 }
 
-func NewTask(id int, title, description string, priority Priority) Task {
+func NewTask(id int, title, description string, priority Priority, status Status, isArchived bool) Task {
     task :=Task{
         id: id,
         name: title,
         description: description,
         priority: priority,
-        status: Todo,
+        status: status,
+        isArchived: isArchived,
     }
 
     return task
-}
-
-func (t Task) WithDueDate(date string) Task {
-    t.dueDate = date
-    return t
-}
-
-func (t Task) WithStatus(status Status) Task {
-    t.status = status
-    return t
-}
-
-func (t Task) WithArchived(isArchived bool) Task {
-    t.isArchived = isArchived
-    return t
 }
 
 func (t Task) FilterValue() string {
@@ -75,10 +63,6 @@ func (t Task) Priority() Priority {
 
 func (t Task) Status() Status {
     return t.status
-}
-
-func (t Task) DueDate() string {
-    return t.dueDate
 }
 
 func (t Task) IsArchived() bool {

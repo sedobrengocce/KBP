@@ -6,6 +6,7 @@ import (
 	mesg "kaban-board-plus/common/msg"
 	"kaban-board-plus/component/button"
 	"kaban-board-plus/component/dialog"
+	dialogComponent "kaban-board-plus/component/dialog/components"
 	"log"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -123,8 +124,11 @@ func (l List) askDeleteBoard() *dialog.Dialog {
         closeDialog()
         return nil, nil
     })
+    message := dialogComponent.NewMessage("Are you sure you want to delete " + selectedItem.Title() + " board?")
+    compnents := []dialog.DialogComponent{}
+    compnents = append(compnents, message)
     noButton.Focus()
-    d := dialog.NewDialog("Delete Board", "Are you sure you want to delete " + selectedItem.Title() + " board?", 40, 10, 1, []button.Button{
+    d := dialog.NewDialog("Delete Board", compnents, 40, 10, 1, []button.Button{
         *yesButton,
         *noButton,
     })

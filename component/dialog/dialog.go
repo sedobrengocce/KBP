@@ -33,8 +33,8 @@ var (
 )
 
 type DialogComponent interface {
-    update(msg tea.Msg) tea.Cmd 
-    render() string
+    Update(msg tea.Msg) tea.Cmd 
+    Render() string
 }
 
 type Dialog struct {
@@ -77,7 +77,7 @@ func (d Dialog) Click() (any, error) {
 func (d *Dialog) Update(msg tea.Msg) tea.Cmd {
     var cmds []tea.Cmd
     for _, c := range d.content {
-        cmd := c.update(msg)
+        cmd := c.Update(msg)
         if cmd != nil {
             cmds = append(cmds, cmd)
         }
@@ -119,7 +119,7 @@ func (d Dialog) Render() string {
     content = append(content, titleStyle.Render(d.title))
     content = append(content, " ")
     for _, c := range d.content {
-        content = append(content, messageStyle.Render(c.render()))
+        content = append(content, messageStyle.Render(c.Render()))
     }
     content = append(content, " ")
     content = append(content, " ")

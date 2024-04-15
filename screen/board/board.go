@@ -71,19 +71,13 @@ func (b *Board) getTasks(status task.Status, today bool) ([]task.Task, error) {
         var title string
         var description string
         var priority int
-        var is_archived bool
-        err = rows.Scan(&id, &title, &description, &priority, &is_archived)
+        var isArchived bool
+        err = rows.Scan(&id, &title, &description, &priority, &isArchived)
         if err != nil {
             log.Print("Error scanning row: ", err)
             return nil, err
         }
-        t := task.NewTask(id, title, description, task.Priority(priority))
-        if is_archived {
-            t = t.WithArchived(is_archived)
-        }
-        if status != task.Todo {
-            t = t.WithStatus(status)
-        }
+        t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived)
         tasks = append(tasks, t)
     }
     defer rows.Close()
