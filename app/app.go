@@ -64,6 +64,15 @@ func (k KabanBoardPlus) Init() tea.Cmd {
 }
 
 func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    var cmd tea.Cmd
+    var s component.Screen
+    if(k.model != nil) {
+        s, cmd = k.model.Update(msg)
+        k.model = s
+        if cmd != nil {
+            return k, cmd
+        }
+    }
     switch m := msg.(type) {
     case initialMsg:
         var cmd tea.Cmd
@@ -107,12 +116,6 @@ func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             k.screen = boardListScreen
             return k, nil
         }
-    }
-    var cmd tea.Cmd
-    var s component.Screen
-    if(k.model != nil) {
-        s, cmd = k.model.Update(msg)
-        k.model = s
     }
     return k, cmd
 }

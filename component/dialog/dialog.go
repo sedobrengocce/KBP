@@ -35,6 +35,7 @@ var (
 type DialogComponent interface {
     Update(msg tea.Msg) tea.Cmd 
     Render() string
+    IsFocused() bool
 }
 
 type Dialog struct {
@@ -75,38 +76,33 @@ func (d Dialog) Click() (any, error) {
 }
 
 func (d *Dialog) Update(msg tea.Msg) tea.Cmd {
-    var cmds []tea.Cmd
-    for _, c := range d.content {
-        cmd := c.Update(msg)
-        if cmd != nil {
-            cmds = append(cmds, cmd)
-        }
-    }
     switch msg := msg.(type) {
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Enter):
             any, err := d.Click()
             if err != nil {
-                cmd := mesg.NewErrorMsg(err)
-                cmds = append(cmds, cmd)
-                return tea.Batch(cmds...)
+                return  mesg.NewErrorMsg(err)
             }
             cmd, ok := any.(tea.Cmd)
             if !ok{
-                cmd = mesg.NewErrorMsg(errors.New("Invalid command"))
-                cmds = append(cmds, cmd)
-                return tea.Batch(cmds...)
+                return mesg.NewErrorMsg(errors.New("Invalid command"))
             }
-            cmds = append(cmds, cmd)
-            return tea.Batch(cmds...)
+            return cmd
         case key.Matches(msg, keys.Left):
             d.PrevButton()
+            return nil
         case key.Matches(msg, keys.Right):
             d.NextButton()
+            return nil
         }
     }
-    return tea.Batch(cmds...)
+    for i := range d.content {
+        if d.content[i].IsFocused() {
+            return d.content[i].Update(msg)
+        }
+    }
+    return nil
 }
 
 func (d Dialog) Render() string {

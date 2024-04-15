@@ -17,3 +17,7 @@ func (m *Message) Update(_ tea.Msg) tea.Cmd {
 func (m Message) Render() string {
     return m.message
 }
+
+func (m Message) IsFocused() bool {
+    return false
+}

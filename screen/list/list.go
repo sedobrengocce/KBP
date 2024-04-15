@@ -99,6 +99,15 @@ func (l *List) deleteBoard(board_id int) tea.Cmd {
     return NewUpdateListMsg()
 }
 
+func (l *List) createBoard(title string) tea.Cmd {
+    _, err := l.db.Exec("INSERT INTO boards (name) values(?)", title)
+    if err != nil {
+        log.Print("Error creating board: ", err)
+        return mesg.NewErrorMsg(err)
+    }
+    return NewUpdateListMsg()
+}
+
 func (l *List) SetSize(width, height int) {
     l.width = width
     l.height = height - heightMargin
@@ -110,7 +119,7 @@ func (l *List) Init() tea.Cmd {
     return cmd
 }
 
-func (l List) askDeleteBoard() *dialog.Dialog {
+func (l *List) askDeleteBoard() *dialog.Dialog {
     item := l.list.SelectedItem()
     if item == nil {
         return nil
@@ -125,13 +134,37 @@ func (l List) askDeleteBoard() *dialog.Dialog {
         return nil, nil
     })
     message := dialogComponent.NewMessage("Are you sure you want to delete " + selectedItem.Title() + " board?")
-    compnents := []dialog.DialogComponent{}
-    compnents = append(compnents, message)
     noButton.Focus()
-    d := dialog.NewDialog("Delete Board", compnents, 40, 10, 1, []button.Button{
-        *yesButton,
-        *noButton,
+    d := dialog.NewDialog("Delete Board", 
+        []dialog.DialogComponent{message}, 
+        40, 10, 1, 
+        []button.Button{
+            *yesButton,
+            *noButton,
+        },
+    )
+    return d
+}
+
+func (l List) askCreateBoard() *dialog.Dialog {
+    titleInput := dialogComponent.NewTextInput("Board Title: ", "Title")
+    titleInput.Focus()
+    confirmButton := button.NewButton("Yes", func() (tea.Cmd, error) {
+        closeDialog()
+        return NewCreateBoardMsg(titleInput.GetText()), nil
     })
+    cancelButton := button.NewButton("No", func() (tea.Cmd, error) {
+        closeDialog()
+        return nil, nil
+    })    
+    d := dialog.NewDialog("Create new Board", 
+        []dialog.DialogComponent{titleInput},
+        40, 10, 1, 
+        []button.Button{
+            *confirmButton,
+            *cancelButton,
+        },
+    )
     return d
 }
 
@@ -145,6 +178,8 @@ func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
             return &l, l.getBoardList()
         case DeleteBoardMsg:
             return &l, l.deleteBoard(msg.board_id)
+        case CreateBoardMsg:
+            return &l, l.createBoard(msg.title)
         case tea.KeyMsg:
             switch {
                 case key.Matches(msg, keys.Enter):
@@ -157,6 +192,7 @@ func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
                     dlg = l.askDeleteBoard()
                     return &l, nil
                 case key.Matches(msg, keys.NewBoard):
+                    dlg = l.askCreateBoard()
                     return &l, nil
                 }
             }
