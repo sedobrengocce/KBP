@@ -1,7 +1,6 @@
 package dialog
 
 import (
-	"errors"
 	mesg "kaban-board-plus/common/msg"
 	"kaban-board-plus/component/button"
 
@@ -29,6 +28,8 @@ var (
 )
 
 type DialogComponent interface {
+    Focus() tea.Cmd
+    Blur() tea.Cmd
     Update(msg tea.Msg) tea.Cmd 
     Render() string
     IsFocused() bool
@@ -74,33 +75,39 @@ func (d *Dialog) prevButton() {
     d.buttons[d.focusedButton].Focus()
 }
 
-func (d Dialog) click() (any, error) {
+func (d Dialog) click() (tea.Cmd, error) {
     return d.buttons[d.focusedButton].Click()
 }
 
-func (d *Dialog) nextComponent() {
+func (d *Dialog) nextComponent() tea.Cmd {
     d.focusedComponent = (d.focusedComponent + 1) % (len(d.content) + 1)
     if d.focusedComponent == len(d.content) {
         d.buttons[d.focusedButton].Focus()
+        return nil
     } else {
         for i := range d.buttons {
             d.buttons[i].Blur()
         }
+        return d.content[d.focusedComponent].Focus()
     }
 }  
 
 func (d *Dialog) Update(msg tea.Msg) tea.Cmd {
+    for i := range d.content {
+        if d.content[i].IsFocused() {
+            cmd :=d.content[i].Update(msg)
+            if cmd != nil {
+                return cmd
+            }
+        }
+    }
     switch msg := msg.(type) {
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Enter):
-            any, err := d.click()
+            cmd, err := d.click()
             if err != nil {
                 return  mesg.NewErrorMsg(err)
-            }
-            cmd, ok := any.(tea.Cmd)
-            if !ok{
-                return mesg.NewErrorMsg(errors.New("Invalid command"))
             }
             return cmd
         case key.Matches(msg, keys.Left):
@@ -110,13 +117,7 @@ func (d *Dialog) Update(msg tea.Msg) tea.Cmd {
             d.nextButton()
             return nil
         case key.Matches(msg, keys.Tab):
-           d.nextComponent()
-           return nil
-        }
-    }
-    for i := range d.content {
-        if d.content[i].IsFocused() {
-            return d.content[i].Update(msg)
+           return d.nextComponent()
         }
     }
     return nil

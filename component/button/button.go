@@ -32,7 +32,7 @@ func (b *Button) Blur() {
     b.isActive = false
 }
 
-func (b *Button) Click() (any, error) {
+func (b *Button) Click() (tea.Cmd, error) {
     return b.action()
 }
 

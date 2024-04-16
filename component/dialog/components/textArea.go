@@ -19,14 +19,17 @@ func NewTextArea(prompt, placeholder string) *textArea {
     }
 }
 
-func (t *textArea) Focus() {
-    t.area.Focus()
-    t.area.Cursor.SetMode(cursor.CursorBlink)
+func (t *textArea) Focus() tea.Cmd {
+    cmds := []tea.Cmd{
+        t.area.Focus(),
+        t.area.Cursor.SetMode(cursor.CursorBlink),
+    }
+    return tea.Batch(cmds...)
 }
 
-func (t *textArea) Blur() {
+func (t *textArea) Blur() tea.Cmd {
     t.area.Blur()
-    t.area.Cursor.SetMode(cursor.CursorHide)
+    return t.area.Cursor.SetMode(cursor.CursorHide)
 }
 
 func (t textArea) IsFocused() bool {

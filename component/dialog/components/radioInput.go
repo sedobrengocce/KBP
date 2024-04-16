@@ -61,12 +61,14 @@ func NewRadioInput[T any](prompt string, items []RadioItem[T]) *radioInput[T] {
     }
 }
 
-func (ri *radioInput[T]) Focus() {
+func (ri *radioInput[T]) Focus() tea.Cmd {
     ri.hasFocus = true
+    return nil
 }
 
-func (ri *radioInput[T]) Blur() {
+func (ri *radioInput[T]) Blur() tea.Cmd {
     ri.hasFocus = false 
+    return nil
 }
 
 func (ri radioInput[T]) GetValue() T {
