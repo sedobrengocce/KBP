@@ -11,24 +11,6 @@ var (
     unfocusedItemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#EFEFEF"))
 )
 
-type keyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Enter  key.Binding
-}
-
-var keys = keyMap{
-	Up: key.NewBinding(
-		key.WithKeys("Up", "k"),
-	),
-	Down: key.NewBinding(
-        key.WithKeys("Down", "j"),
-	),
-	Enter: key.NewBinding(
-		key.WithKeys("enter"),
-	),
-}
-
 type RadioItem[T any] struct {
     title string
     value T
@@ -81,14 +63,10 @@ func (ri *radioInput[T]) nextItem() {
 
 func (ri *radioInput[T]) prevItem() {
     numItems := len(ri.items)
-    ri.focusedItem = (ri.focusedItem + 1 + numItems) % numItems
+    ri.focusedItem = (ri.focusedItem - 1 + numItems) % numItems
 }
 
 func (ri *radioInput[T]) selectItem() {
-    if ri.selectedItem == ri.focusedItem {
-        ri.hasSelectedItem = false
-        return
-    }
     ri.hasSelectedItem = true
     ri.selectedItem = ri.focusedItem
 }
@@ -99,13 +77,15 @@ func (ri *radioInput[T]) Update(msg tea.Msg) tea.Cmd {
         switch {
         case key.Matches(msg, keys.Up):
             ri.prevItem()
-            return nil
+            return newComponentPreventMsg()
         case key.Matches(msg, keys.Down):
             ri.nextItem()
-            return nil
-        case key.Matches(msg, keys.Enter):
+            return newComponentPreventMsg()
+        case key.Matches(msg, keys.Space):
             ri.selectItem()
-            return nil
+            return newComponentPreventMsg()
+        case key.Matches(msg, keys.Enter):
+            return newComponentPreventMsg()
         }
     }   
     return nil

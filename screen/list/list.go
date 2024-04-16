@@ -125,13 +125,13 @@ func (l *List) askDeleteBoard() *dialog.Dialog {
         return nil
     }
     selectedItem := item.(boardElement)
-    yesButton := button.NewButton("Yes", func() (tea.Cmd, error) {
+    yesButton := button.NewButton("Yes", func() tea.Cmd {
         closeDialog()
-        return NewDeleteBoardMsg(selectedItem.id), nil
+        return NewDeleteBoardMsg(selectedItem.id)
     })
-    noButton := button.NewButton("No", func() (tea.Cmd, error) {
+    noButton := button.NewButton("No", func() tea.Cmd {
         closeDialog()
-        return nil, nil
+        return nil
     })
     message := dialogComponent.NewMessage("Are you sure you want to delete " + selectedItem.Title() + " board?")
     noButton.Focus()
@@ -149,13 +149,13 @@ func (l *List) askDeleteBoard() *dialog.Dialog {
 func (l List) askCreateBoard() *dialog.Dialog {
     titleInput := dialogComponent.NewTextInput("Board Title: ", "Title")
     titleInput.Focus()
-    confirmButton := button.NewButton("Yes", func() (tea.Cmd, error) {
+    confirmButton := button.NewButton("Yes", func() tea.Cmd {
         closeDialog()
-        return NewCreateBoardMsg(titleInput.GetText()), nil
+        return NewCreateBoardMsg(titleInput.GetText())
     })
-    cancelButton := button.NewButton("No", func() (tea.Cmd, error) {
+    cancelButton := button.NewButton("No", func() tea.Cmd {
         closeDialog()
-        return nil, nil
+        return nil
     })    
     d := dialog.NewDialog("Create new Board", 
         []dialog.DialogComponent{titleInput},

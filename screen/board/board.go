@@ -161,13 +161,13 @@ func (b *Board) askNewTask() tea.Cmd {
         description,
         radioInput,
     }
-    confirmButton := button.NewButton("Confirm", func() (tea.Cmd, error) {
+    confirmButton := button.NewButton("Confirm", func() tea.Cmd {
         closeDialog()
-        return NewCreateTaskMsg(title.GetText(), description.GetText(), radioInput.GetValue()), nil
+        return NewCreateTaskMsg(title.GetText(), description.GetText(), radioInput.GetValue())
     })
-    cancelButton := button.NewButton("Cancel", func() (tea.Cmd, error) {
+    cancelButton := button.NewButton("Cancel", func() tea.Cmd {
         closeDialog()
-        return nil, nil
+        return nil
     })
     buttons := []button.Button{
         *confirmButton,
@@ -178,9 +178,13 @@ func (b *Board) askNewTask() tea.Cmd {
     return nil
 }
 
-func (b Board) createTask(name, description string, priority task.Priority) error {
+func (b Board) createTask(name, description string, priority task.Priority) tea.Cmd {
     _, err := b.db.Exec("INSERT INTO tasks (board_id, name, description, priority) VALUES (?,?,?,?)", b.id, name, description, int(priority))
-    return err
+    if err != nil {
+        log.Print("Error creating new task: ", err)
+        return msgs.NewErrorMsg(err)
+    }
+    return NewUpdateMsg()
 }
 
 func (b *Board) Init() tea.Cmd {
@@ -233,12 +237,8 @@ func (b Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
     switch msg := msg.(type) {
     case UpdateMsg:
         return &b, b.Init() 
-    case CreateTask:
-        err := b.createTask(msg.Name, msg.Description, msg.Priority)
-        if err != nil {
-            return &b, msgs.NewErrorMsg(err)
-        }
-        return &b, NewUpdateMsg()
+    case CreateTaskMsg:
+        return &b, b.createTask(msg.Name, msg.Description, msg.Priority)
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):

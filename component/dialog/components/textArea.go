@@ -4,18 +4,22 @@ import (
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type textArea struct {
     area textarea.Model
+    title string
 }
 
 func NewTextArea(prompt, placeholder string) *textArea {
     area := textarea.New()
-    area.Prompt = prompt
+    area.ShowLineNumbers = false
+    area.CharLimit = 200
     area.Placeholder = placeholder
     return &textArea{
         area: area,
+        title: prompt,
     }
 }
 
@@ -47,5 +51,8 @@ func (t *textArea) Update (msg tea.Msg) tea.Cmd {
 }
 
 func (t *textArea) Render() string {
-    return t.area.View()
+    return lipgloss.JoinVertical(lipgloss.Left,
+        t.title,
+        t.area.View(),
+    )
 }

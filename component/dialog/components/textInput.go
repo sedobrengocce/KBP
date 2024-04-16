@@ -2,6 +2,7 @@ package dialogComponent
 
 import (
 	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -44,6 +45,15 @@ func (t textInput) GetText() string {
 func (t *textInput) Update (msg tea.Msg) tea.Cmd {
     ti, cmd := t.input.Update(msg)
     t.input = ti
+    if cmd == nil {
+        switch msg := msg.(type) {
+        case tea.KeyMsg:
+            switch {
+            case key.Matches(msg, keys.Enter):
+                return newComponentPreventMsg()
+            }
+        }
+    }
     return cmd
 }
 

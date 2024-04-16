@@ -14,7 +14,7 @@ func NewUpdateMsg() tea.Cmd {
     }
 }
 
-type CreateTask struct {
+type CreateTaskMsg struct {
     Name string
     Description string
     Priority task.Priority
@@ -22,6 +22,10 @@ type CreateTask struct {
 
 func NewCreateTaskMsg(name, description string, priority task.Priority) tea.Cmd {
     return func() tea.Msg {
-        return NewCreateTaskMsg(name, description, priority)
+        return CreateTaskMsg{
+            Name: name,
+            Description: description,
+            Priority: priority,
+        }
     }
 }

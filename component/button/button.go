@@ -12,11 +12,11 @@ var (
 
 type Button struct {
     text string
-    action func() (tea.Cmd, error)
+    action func() tea.Cmd
     isActive bool
 }
 
-func NewButton(text string, action func() (tea.Cmd, error)) *Button {
+func NewButton(text string, action func() tea.Cmd) *Button {
     return &Button{
         text: text,
         action: action,
@@ -32,7 +32,7 @@ func (b *Button) Blur() {
     b.isActive = false
 }
 
-func (b *Button) Click() (tea.Cmd, error) {
+func (b *Button) Click() tea.Cmd {
     return b.action()
 }
 
