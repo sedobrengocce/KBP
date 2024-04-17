@@ -1,6 +1,13 @@
 package task
 
-import componet "kaban-board-plus/common/component"
+// TODO: Show Priority
+// TODO: Highlight *special element
+
+import (
+	componet "kaban-board-plus/common/component"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 type Status int
 
@@ -18,17 +25,21 @@ const (
     Low
 )
 
+var defaultStyle = lipgloss.NewStyle()
+
 type Task struct {
     id int
     name string
     description string
     priority Priority
     isArchived bool
+    isToday bool
     completedDate componet.CompletedDate
     status Status
+    style lipgloss.Style
 }
 
-func NewTask(id int, title, description string, priority Priority, status Status, isArchived bool) Task {
+func NewTask(id int, title, description string, priority Priority, status Status, isArchived, isToday bool) Task {
     task :=Task{
         id: id,
         name: title,
@@ -36,6 +47,7 @@ func NewTask(id int, title, description string, priority Priority, status Status
         priority: priority,
         status: status,
         isArchived: isArchived,
+        isToday: isToday,
     }
 
     return task
@@ -69,19 +81,6 @@ func (t Task) IsArchived() bool {
     return t.isArchived
 }
 
-func (t *Task) SetPriority(priority Priority) {
-    t.priority = priority
+func (t Task) IsToday() bool {
+    return t.isToday
 }
-
-func (t *Task) ToggleArchive() {
-    t.isArchived = !t.isArchived
-}
-
-func (t *Task) SetDescription(description string) {
-    t.description = description
-}
-
-func (t *Task) SetTitle(name string) {
-    t.name = name
-}
-

@@ -79,9 +79,9 @@ func (b *Board) getTasks(status task.Status, today bool) ([]task.Task, error) {
     var rows *sql.Rows
     var err error
     if today {
-        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
+        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
     } else {
-        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived FROM tasks WHERE status = ? and board_id = ?", status, b.id)
+        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ?", status, b.id)
     }
     if err != nil {
         log.Print("Error getting tasks: ", err)
@@ -93,12 +93,13 @@ func (b *Board) getTasks(status task.Status, today bool) ([]task.Task, error) {
         var description string
         var priority int
         var isArchived bool
-        err = rows.Scan(&id, &title, &description, &priority, &isArchived)
+        var isToday bool
+        err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
         if err != nil {
             log.Print("Error scanning row: ", err)
             return nil, err
         }
-        t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived)
+        t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
         tasks = append(tasks, t)
     }
     defer rows.Close()
@@ -137,6 +138,21 @@ func (b *Board) moveTask() tea.Cmd {
     selectedTask := b.cols[b.focusedColumn].SelectedItem()
 
     _, err := b.db.Exec("UPDATE tasks SET status = ? WHERE id = ?", nextColumn, selectedTask.ID())
+    if err != nil {
+        log.Print("Error updating task: ", err)
+        return msgs.NewErrorMsg(&dbError{err: err})
+    }
+
+    return NewUpdateMsg()
+}
+
+func (b *Board) toggleToday() tea.Cmd {
+    if (b.cols[b.focusedColumn].Length() == 0) {
+        return msgs.NewErrorMsg(&emptyColumn{})
+    }
+    selectedTask := b.cols[b.focusedColumn].SelectedItem()
+
+    _, err := b.db.Exec("UPDATE tasks SET is_today = ? WHERE id = ?", !selectedTask.IsToday(), selectedTask.ID())
     if err != nil {
         log.Print("Error updating task: ", err)
         return msgs.NewErrorMsg(&dbError{err: err})
