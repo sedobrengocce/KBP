@@ -51,8 +51,8 @@ func NewStore(kbppath string) (*sql.DB, error) {
             description TEXT,
             status INTEGER DEFAULT 0 NOT NULL,
             priority INTEGER DEFAULT 1 NOT NULL,
-            is_today BOOLEAN DEFAULT "false" NOT NULL,
-            is_archived BOOLEAN DEFAULT "false" NOT NULL,
+            is_today BOOLEAN DEFAULT false NOT NULL,
+            is_archived BOOLEAN DEFAULT false NOT NULL,
             done_date TEXT,
             FOREIGN KEY(board_id) REFERENCES boards(id)
         );
