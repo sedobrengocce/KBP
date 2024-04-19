@@ -9,8 +9,35 @@ import (
 )
 
 var (
-    focusedColumnStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FF9800"))
-    unfocusedColumnStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#E3E3E3"))
+    titleBorder = lipgloss.Border{
+        Left: "",
+        Right: "",
+    }
+    paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+    helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+)
+
+var (
+    focusedColumnTitleStyle = lipgloss.NewStyle().
+        MarginLeft(2).
+        Background(lipgloss.Color("#3f3f3f")).
+        Foreground(lipgloss.Color("#ff9800")).
+        Border(titleBorder, false, true).
+        BorderForeground(lipgloss.Color("#3f3f3f")).
+        Bold(true).
+        Align(lipgloss.Center)
+    focusedColumnBorderStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FF9800"))
+)
+
+var (
+    unfocusedColumnTitleStyle = lipgloss.NewStyle().
+        MarginLeft(2).
+        Background(lipgloss.Color("#1a1a1a")).
+        Foreground(lipgloss.Color("#3f3f3f")).
+        Border(titleBorder, false, true).
+        BorderForeground(lipgloss.Color("#1a1a1a")).
+        Align(lipgloss.Center)
+    unfocusedColumnBorderStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#3f3f3f"))
 )
 
 const (
@@ -28,10 +55,11 @@ type Column struct {
 
 func NewColumn(title string) *Column {
     l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-    l.Title = title
+    l.Title = " " + title + " "
+    l.Styles.Title = unfocusedColumnTitleStyle
     l.SetShowHelp(false)
     return &Column{
-        title: title,
+        title: " " + title + " ",
         focused: false,
         taskList: l,
     }
@@ -63,10 +91,12 @@ func (c Column) SelectedItem() task.Task {
 
 func (c *Column) Focus() {
     c.focused = true
+    c.taskList.Styles.Title = focusedColumnTitleStyle
 }
 
 func (c *Column) Blur() {
     c.focused = false
+    c.taskList.Styles.Title = unfocusedColumnTitleStyle
 }
 
 func (c Column) Focused() bool {
@@ -87,12 +117,12 @@ func (c *Column) Update(msg tea.Msg) tea.Cmd {
 
 func (c Column) View() string {
     if(c.focused) {
-        return focusedColumnStyle.
+        return focusedColumnBorderStyle.
             Width(c.width).
             Height(c.height).
             Render(c.taskList.View())
     }
-    return unfocusedColumnStyle.
+    return unfocusedColumnBorderStyle.
             Width(c.width).
             Height(c.height).
             Render(c.taskList.View())
