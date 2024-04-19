@@ -148,16 +148,15 @@ func (b *Board) moveTask() tea.Cmd {
 
 func (b *Board) toggleToday() tea.Cmd {
     if (b.cols[b.focusedColumn].Length() == 0) {
+        log.Print("Empty column")
         return msgs.NewErrorMsg(&emptyColumn{})
     }
     selectedTask := b.cols[b.focusedColumn].SelectedItem()
-
     _, err := b.db.Exec("UPDATE tasks SET is_today = ? WHERE id = ?", !selectedTask.IsToday(), selectedTask.ID())
     if err != nil {
         log.Print("Error updating task: ", err)
         return msgs.NewErrorMsg(&dbError{err: err})
     }
-
     return NewUpdateMsg()
 }
 
@@ -264,6 +263,8 @@ func (b Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         case key.Matches(msg, keys.Enter):
             if(len(b.cols) == todayColumnNum) {
                 return &b, b.moveTask()
+            } else {
+                return &b, b.toggleToday()
             }
         case key.Matches(msg, keys.NewTask):
             if(len(b.cols) == projectColumnNum) {
