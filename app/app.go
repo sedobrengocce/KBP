@@ -144,10 +144,12 @@ func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         case key.Matches(m, keys.Today):
             k.model = todayBoard
             k.screen = todayScreen
+            k.model.Init()
             return k, nil
         case key.Matches(m, keys.BoardList):
             k.model = boardList
             k.screen = boardListScreen
+            k.model.Init()
             return k, nil
         }
     }
