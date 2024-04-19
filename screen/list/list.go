@@ -1,3 +1,4 @@
+// TODO: implement last year (or month) activity map
 package list
 
 import (
@@ -20,8 +21,16 @@ const (
     heightMargin = 6
     widthGrow = 3
 )
+
 var (
-    BoardListColumnStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FF9800"))
+    titleBorder = lipgloss.Border{
+        Left: "",
+        Right: "",
+    }
+    boardListColumnStyle = lipgloss.NewStyle().Padding(1,2).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FF9800"))
+	titleStyle        = lipgloss.NewStyle().MarginLeft(2).Background(lipgloss.Color("#3f3f3f")).Foreground(lipgloss.Color("#ff9800")).Border(titleBorder, false, true).BorderForeground(lipgloss.Color("#3f3f3f"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 )
 
 type List struct {
@@ -43,8 +52,11 @@ func (l *List) ToggleHelp() {
 func NewList(db *sql.DB) *List {
     help := help.New()
     help.ShowAll = false
-    l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-    l.Title = "Boards"
+    l := list.New([]list.Item{}, itemDelegate{}, 0, 0)
+    l.Title = " Boards "
+    l.Styles.Title = titleStyle
+    l.Styles.PaginationStyle = paginationStyle
+    l.Styles.HelpStyle = helpStyle
     l.SetShowHelp(false)
     preview := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
     preview.Title = ""
@@ -202,7 +214,7 @@ func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
 }
 
 func (l List) View() string {
-    brdList := BoardListColumnStyle.
+    brdList := boardListColumnStyle.
         Height(l.height).
         Width(l.width / widthGrow).
         Render(l.list.View())
