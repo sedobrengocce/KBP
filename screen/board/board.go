@@ -61,16 +61,16 @@ func newBoard(id int, name string, db *sql.DB) *Board {
 
 func NewTodayBoard(db *sql.DB) *Board {
     b := newBoard(0, "Today", db)
-    b.cols = append(b.cols, *column.NewColumn("To Do"))
-    b.cols = append(b.cols, *column.NewColumn("In Progress"))
-    b.cols = append(b.cols, *column.NewColumn("Done"))
+    b.cols = append(b.cols, *column.NewColumn("To Do", true))
+    b.cols = append(b.cols, *column.NewColumn("In Progress", true))
+    b.cols = append(b.cols, *column.NewColumn("Done", true))
     return b
 }
 
 func NewProjectBoard(id int, name string, db *sql.DB) *Board {
     b := newBoard(id, name, db)
-    b.cols = append(b.cols, *column.NewColumn("To Do"))
-    b.cols = append(b.cols, *column.NewColumn("Done"))
+    b.cols = append(b.cols, *column.NewColumn("To Do", false))
+    b.cols = append(b.cols, *column.NewColumn("Done", false))
     return b
 }
 
@@ -95,6 +95,7 @@ func (b *Board) getTasks(status task.Status, today bool) ([]task.Task, error) {
         var isArchived bool
         var isToday bool
         err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
+        log.Print(id, title, description,priority, isArchived, isToday)
         if err != nil {
             log.Print("Error scanning row: ", err)
             return nil, err

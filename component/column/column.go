@@ -33,7 +33,7 @@ var (
     unfocusedColumnTitleStyle = lipgloss.NewStyle().
         MarginLeft(2).
         Background(lipgloss.Color("#1a1a1a")).
-        Foreground(lipgloss.Color("#3f3f3f")).
+        Foreground(lipgloss.Color("#5c5c5c")).
         Border(titleBorder, false, true).
         BorderForeground(lipgloss.Color("#1a1a1a")).
         Align(lipgloss.Center)
@@ -53,11 +53,15 @@ type Column struct {
     height int
 }
 
-func NewColumn(title string) *Column {
-    l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+func NewColumn(title string, isToday bool) *Column {
+    l := list.New([]list.Item{}, projectTaskDelegate{}, 0, 0)
+    if(isToday) {
+        l = list.New([]list.Item{}, todayTaskDelegate{}, 0, 0)
+    }
     l.Title = " " + title + " "
     l.Styles.Title = unfocusedColumnTitleStyle
     l.SetShowHelp(false)
+    l.SetStatusBarItemName("Task","Tasks")
     return &Column{
         title: " " + title + " ",
         focused: false,

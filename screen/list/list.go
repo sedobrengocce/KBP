@@ -52,12 +52,15 @@ func (l *List) ToggleHelp() {
 func NewList(db *sql.DB) *List {
     help := help.New()
     help.ShowAll = false
-    l := list.New([]list.Item{}, itemDelegate{}, 0, 0)
+    l := list.New([]list.Item{}, boardElementDelegate{}, 0, 0)
     l.Title = " Boards "
     l.Styles.Title = titleStyle
     l.Styles.PaginationStyle = paginationStyle
     l.Styles.HelpStyle = helpStyle
+    l.InfiniteScrolling = true
+    l.SetShowStatusBar(false)
     l.SetShowHelp(false)
+    l.SetStatusBarItemName("Board", "Boards")
     preview := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
     preview.Title = ""
     preview.SetShowHelp(false)
@@ -145,7 +148,7 @@ func (l *List) askDeleteBoard() *dialog.Dialog {
         closeDialog()
         return nil
     })
-    message := dialogComponent.NewMessage("Are you sure you want to delete " + selectedItem.Title() + " board?")
+    message := dialogComponent.NewMessage("Are you sure you want to delete " + selectedItem.title() + " board and all tasks in this board?")
     noButton.Focus()
     d := dialog.NewDialog("Delete Board", 
         []dialog.DialogComponent{message}, 

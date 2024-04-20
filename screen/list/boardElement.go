@@ -16,10 +16,7 @@ func newBoardElement(id int, name string) *boardElement {
     }
 }
 
-func (b boardElement) Title() string {
+func (b boardElement) title() string {
     return b.name
 }
 
-func (b boardElement) Description() string {
-    return ""
-}
