@@ -183,37 +183,37 @@ func (l List) askCreateBoard() *dialog.Dialog {
     return d
 }
 
-func (l List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
+func (l *List) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
     if dlg != nil {
         cmd := dlg.Update(msg)
-        return &l, cmd
+        return l, cmd
     }
     switch msg := msg.(type) {
         case UpdateListMsg:
-            return &l, l.getBoardList()
+            return l, l.getBoardList()
         case DeleteBoardMsg:
-            return &l, l.deleteBoard(msg.board_id)
+            return l, l.deleteBoard(msg.board_id)
         case CreateBoardMsg:
-            return &l, l.createBoard(msg.title)
+            return l, l.createBoard(msg.title)
         case tea.KeyMsg:
             switch {
                 case key.Matches(msg, keys.Enter):
                     item := l.list.SelectedItem()
                     if item == nil {
-                        return &l, nil
+                        return l, nil
                     }
-                    return &l, mesg.NewSelectBoardMsg(item.(boardElement).id)
+                    return l, mesg.NewSelectBoardMsg(item.(boardElement).id)
                 case key.Matches(msg, keys.DeleteBoard):
                     dlg = l.askDeleteBoard()
-                    return &l, nil
+                    return l, nil
                 case key.Matches(msg, keys.NewBoard):
                     dlg = l.askCreateBoard()
-                    return &l, nil
+                    return l, nil
                 }
             }
     bl, cmd := l.list.Update(msg)
     l.list = bl
-    return &l, cmd
+    return l, cmd
 }
 
 func (l List) View() string {

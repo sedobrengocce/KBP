@@ -86,7 +86,7 @@ func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
         if today {
             rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
         } else {
-            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ? and is_archived = ?", status, b.id, archived)
+            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ?", status, b.id)
         }
         defer rows.Close()
         if err != nil {
@@ -101,13 +101,19 @@ func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
             var isArchived bool
             var isToday bool
             err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
-            log.Print(id, title, description,priority, isArchived, isToday)
             if err != nil {
                 log.Print("Error scanning row: ", err)
                 return msgs.ErrorMsg{Err: err}
             }
-            t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
-            tasks = append(tasks, t)
+            if archived { 
+                t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
+                tasks = append(tasks, t)
+            } else {
+                if !isArchived {
+                    t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
+                    tasks = append(tasks, t)
+                }
+            }
         }
         switch status {
         case task.Todo:
@@ -242,31 +248,40 @@ func (b *Board) showHideArchive() tea.Cmd {
 
 func (b *Board) Init() tea.Cmd {
     var cmds = []tea.Cmd{}
-    for i := 0; i < len(b.cols); i++ {
-        cmd := b.getTasks(task.Status(i), true, b.showArchived)
+    for i := 0; i < int(task.Unknown) ; i++ {
+        cmd := b.getTasks(task.Status(i), len(b.cols) == todayColumnNum, b.showArchived)
         cmds = append(cmds, cmd)
     } 
+    if b.focusedColumn == 0 {
+        b.cols[0].Focus()
+    }
     return tea.Batch(cmds...)
 }
 
-func (b Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
+func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
     if dlg != nil {
-        return &b, dlg.Update(msg)
+        return b, dlg.Update(msg)
     }
     switch msg := msg.(type) {
     case UpdateMsg:
-        return &b, b.Init() 
+        return b, b.Init() 
     case CreateTaskMsg:
-        return &b, b.createTask(msg.Name, msg.Description, msg.Priority)
+        return b, b.createTask(msg.Name, msg.Description, msg.Priority)
     case SetDoneTaskMsg:
-        return &b, b.cols[task.Todo].SetItems(*msg.tasks)
+        if len(b.cols) == todayColumnNum {
+            return b, b.cols[task.Done].SetItems(*msg.tasks)
+        }
+        return b, b.cols[task.InProgress].AddItems(*msg.tasks)
     case SetProgressTaskMsg:
         if len(b.cols) == todayColumnNum {
-            return &b, b.cols[task.InProgress].SetItems(*msg.tasks)
+            return b, b.cols[task.InProgress].SetItems(*msg.tasks)
         }
-        return &b, b.cols[task.Todo].AddItems(*msg.tasks)
+        return b, b.cols[task.Todo].AddItems(*msg.tasks)
     case SetTodoTaskMsg:
-        return &b, b.cols[task.Todo].SetItems(*msg.tasks)
+        if len(b.cols) == todayColumnNum {
+            return b, b.cols[task.Todo].SetItems(*msg.tasks)
+        }
+        return b, b.cols[task.Todo].AddItems(*msg.tasks)
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):
@@ -275,26 +290,26 @@ func (b Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
             b.nextColumn()
         case key.Matches(msg, keys.Action):
             if(len(b.cols) == todayColumnNum) {
-                return &b, b.moveTask()
+                return b, b.moveTask()
             } 
-            return &b, b.toggleToday()
+            return b, b.toggleToday()
         case key.Matches(msg, keys.NewTask):
             if(len(b.cols) == projectColumnNum) {
-                return &b, b.askNewTask()
+                return b, b.askNewTask()
             }            
         case key.Matches(msg, keys.Archive):
-            return &b, b.toggleArchive()
+            return b, b.toggleArchive()
         case key.Matches(msg, keys.ShowHideArchive):
             if len(b.cols) == projectColumnNum {
-                return &b, b.showHideArchive()
+                return b, b.showHideArchive()
             }
-            
+
         }
     }
 
     b.cols[b.focusedColumn].Update(msg)
 
-    return &b, nil
+    return b, nil
 }
 
 func (b Board) View() string {

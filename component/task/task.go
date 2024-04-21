@@ -14,6 +14,7 @@ const (
     Todo Status = iota
     InProgress
     Done
+    Unknown
 )
 
 const (

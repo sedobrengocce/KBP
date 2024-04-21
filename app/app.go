@@ -87,7 +87,7 @@ func (k KabanBoardPlus) getBoardName(id int) (string, error) {
     return name, nil
 }
 
-func (k KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (k *KabanBoardPlus) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     var cmd tea.Cmd
     var s component.Screen
     if(k.model != nil) {
