@@ -3,13 +3,13 @@ package board
 import "github.com/charmbracelet/bubbles/key"
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Enter, k.NewTask}
+	return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Action, k.NewTask}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Enter, k.NewTask},                // second column
+		{k.Action, k.NewTask},                // second column
 	}
 }
 
@@ -18,8 +18,10 @@ type keyMap struct {
 	Down   key.Binding
 	Right  key.Binding
 	Left   key.Binding
-	Enter  key.Binding
+	Action  key.Binding
     NewTask key.Binding
+    Archive key.Binding
+    ShowHideArchive key.Binding
 }
 
 var keys = keyMap{
@@ -39,13 +41,20 @@ var keys = keyMap{
 		key.WithKeys("left", "h"),
 		key.WithHelp("←/h", "move left"),
 	),
-	Enter: key.NewBinding(
+	Action: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "enter"),
+		key.WithHelp("enter", "action"),
 	),
     NewTask: key.NewBinding(
         key.WithKeys("n"),
         key.WithHelp("n", "new task (not in today board)"),
+    ),
+	Archive: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "toggle archive"),
+	),
+    ShowHideArchive: key.NewBinding(
+        key.WithKeys("ctrl+a"),
     ),
 }
 

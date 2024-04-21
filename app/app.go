@@ -1,3 +1,4 @@
+// TODO: Refactor Help for entire app
 package app
 
 import (

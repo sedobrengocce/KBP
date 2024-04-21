@@ -69,12 +69,21 @@ func NewColumn(title string, isToday bool) *Column {
     }
 }
 
-func (c *Column) AddItems(items []task.Task) tea.Cmd {
+func (c *Column) SetItems(items []task.Task) tea.Cmd {
     l := []list.Item{}
     for _, item := range items {
         l = append(l, item)
     }
     return c.taskList.SetItems(l)
+}
+
+func (c *Column) AddItems(items []task.Task) tea.Cmd {
+    cmds := []tea.Cmd{}
+    for _, item := range items {
+        cmd := c.taskList.InsertItem(len(c.taskList.Items()), item)
+        cmds = append(cmds, cmd)
+    }
+    return tea.Batch(cmds...)
 }
 
 func (c *Column) AddItem(item task.Task) tea.Cmd {

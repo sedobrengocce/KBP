@@ -1,8 +1,5 @@
 package task
 
-// TODO: Show Priority
-// TODO: Highlight *special element
-
 import (
 	componet "kaban-board-plus/common/component"
 

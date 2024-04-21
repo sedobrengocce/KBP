@@ -1,3 +1,5 @@
+// TODO: Move task to another board
+// TODO: Set done date
 package board
 
 import (
@@ -10,7 +12,6 @@ import (
 	dialogComponent "kaban-board-plus/component/dialog/components"
 	"kaban-board-plus/component/task"
 	"log"
-	"slices"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -39,6 +40,7 @@ type Board struct {
     name string
     help help.Model
     showHelp bool
+    showArchived bool
     focusedColumn int
     height int
     width int
@@ -56,6 +58,7 @@ func newBoard(id int, name string, db *sql.DB) *Board {
         name: name,
         focusedColumn: 0,
         db: db,
+        showArchived: false,
     }
 }
 
@@ -71,40 +74,53 @@ func NewProjectBoard(id int, name string, db *sql.DB) *Board {
     b := newBoard(id, name, db)
     b.cols = append(b.cols, *column.NewColumn("To Do", false))
     b.cols = append(b.cols, *column.NewColumn("Done", false))
+    b.showArchived = true
     return b
 }
 
-func (b *Board) getTasks(status task.Status, today bool) ([]task.Task, error) {
-    var tasks []task.Task
-    var rows *sql.Rows
-    var err error
-    if today {
-        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
-    } else {
-        rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ?", status, b.id)
-    }
-    if err != nil {
-        log.Print("Error getting tasks: ", err)
-        return nil, err
-    }
-    for rows.Next() {
-        var id int
-        var title string
-        var description string
-        var priority int
-        var isArchived bool
-        var isToday bool
-        err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
-        log.Print(id, title, description,priority, isArchived, isToday)
-        if err != nil {
-            log.Print("Error scanning row: ", err)
-            return nil, err
+func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
+    return func() tea.Msg {
+        var tasks []task.Task
+        var rows *sql.Rows
+        var err error
+        if today {
+            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
+        } else {
+            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ? and is_archived = ?", status, b.id, archived)
         }
-        t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
-        tasks = append(tasks, t)
+        defer rows.Close()
+        if err != nil {
+            log.Print("Error getting tasks: ", err)
+            return msgs.ErrorMsg{Err: err}
+        }
+        for rows.Next() {
+            var id int
+            var title string
+            var description string
+            var priority int
+            var isArchived bool
+            var isToday bool
+            err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
+            log.Print(id, title, description,priority, isArchived, isToday)
+            if err != nil {
+                log.Print("Error scanning row: ", err)
+                return msgs.ErrorMsg{Err: err}
+            }
+            t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
+            tasks = append(tasks, t)
+        }
+        switch status {
+        case task.Todo:
+            return SetTodoTaskMsg{tasks: &tasks}
+        case task.InProgress:
+            return SetProgressTaskMsg{tasks: &tasks}
+        case task.Done:
+            return SetDoneTaskMsg{tasks: &tasks}
+        default:
+            log.Print("Unknow status type: ", status)
+            return msgs.ErrorMsg{Err: newStatusTypeError(status)}
+        }
     }
-    defer rows.Close()
-    return tasks, nil
 }
 
 func (b *Board) SetSize(width, height int) {
@@ -145,6 +161,22 @@ func (b *Board) moveTask() tea.Cmd {
     }
 
     return NewUpdateMsg()
+}
+
+func (b *Board) toggleArchive() tea.Cmd {
+    return func() tea.Msg {
+        if b.cols[b.focusedColumn].Length() == 0 {
+            log.Print("Empty column")
+            return msgs.ErrorMsg{Err: NewEmptyColumnError()}
+        }
+        selectedTask := b.cols[b.focusedColumn].SelectedItem()
+        _, err := b.db.Exec("UPDATE tasks SET is_archived = ? WHERE id = ?", !selectedTask.IsArchived(), selectedTask.ID())
+        if err != nil {
+            log.Print("Error updating task: ", err)
+            return msgs.ErrorMsg{Err: NewDbError(err)}
+        }
+        return UpdateMsg{}
+    }
 }
 
 func (b *Board) toggleToday() tea.Cmd {
@@ -203,46 +235,17 @@ func (b Board) createTask(name, description string, priority task.Priority) tea.
     return NewUpdateMsg()
 }
 
-func (b *Board) Init() tea.Cmd {
-    colNum := len(b.cols)
-    var tasksList [][]task.Task
-    if colNum == todayColumnNum {
-        for i := 0; i < colNum; i++ {
-            tasks, err := b.getTasks(task.Status(i), true)
-            if err != nil {
-                return  msgs.NewErrorMsg(err)
-            }
-            tasksList = append(tasksList, tasks)
-        } 
-    } else if colNum == projectColumnNum {
-        var todos []task.Task
-        var inProgress []task.Task
-        var done []task.Task
-        var err error
-        todos, err = b.getTasks(task.Todo, false)
-        if err != nil {
-            return msgs.NewErrorMsg(err)
-        }
-        inProgress, err = b.getTasks(task.InProgress, false)
-        if err != nil {
-            return  msgs.NewErrorMsg(err)
-        }
-        done, err = b.getTasks(task.Done, false)
-        if err != nil {
-            return msgs.NewErrorMsg(err)
-        }
-        tasksList = append(tasksList, slices.Concat(todos, inProgress))
-        tasksList = append(tasksList, done)
+func (b *Board) showHideArchive() tea.Cmd {
+    b.showArchived = !b.showArchived
+    return b.getTasks(task.Done, false, b.showArchived)     
+}
 
-    } else {
-        return msgs.NewErrorMsg(&errorColNumber{number: colNum})
-    }
-    var cmds []tea.Cmd
-    for i := range b.cols {
-        cmd := b.cols[i].AddItems(tasksList[i])
+func (b *Board) Init() tea.Cmd {
+    var cmds = []tea.Cmd{}
+    for i := 0; i < len(b.cols); i++ {
+        cmd := b.getTasks(task.Status(i), true, b.showArchived)
         cmds = append(cmds, cmd)
-    }
-    b.cols[b.focusedColumn].Focus()
+    } 
     return tea.Batch(cmds...)
 }
 
@@ -255,22 +258,37 @@ func (b Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         return &b, b.Init() 
     case CreateTaskMsg:
         return &b, b.createTask(msg.Name, msg.Description, msg.Priority)
+    case SetDoneTaskMsg:
+        return &b, b.cols[task.Todo].SetItems(*msg.tasks)
+    case SetProgressTaskMsg:
+        if len(b.cols) == todayColumnNum {
+            return &b, b.cols[task.InProgress].SetItems(*msg.tasks)
+        }
+        return &b, b.cols[task.Todo].AddItems(*msg.tasks)
+    case SetTodoTaskMsg:
+        return &b, b.cols[task.Todo].SetItems(*msg.tasks)
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):
             b.prevColumn()
         case key.Matches(msg, keys.Right):
             b.nextColumn()
-        case key.Matches(msg, keys.Enter):
+        case key.Matches(msg, keys.Action):
             if(len(b.cols) == todayColumnNum) {
                 return &b, b.moveTask()
-            } else {
-                return &b, b.toggleToday()
-            }
+            } 
+            return &b, b.toggleToday()
         case key.Matches(msg, keys.NewTask):
             if(len(b.cols) == projectColumnNum) {
                 return &b, b.askNewTask()
             }            
+        case key.Matches(msg, keys.Archive):
+            return &b, b.toggleArchive()
+        case key.Matches(msg, keys.ShowHideArchive):
+            if len(b.cols) == projectColumnNum {
+                return &b, b.showHideArchive()
+            }
+            
         }
     }
 

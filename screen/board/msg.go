@@ -29,3 +29,15 @@ func NewCreateTaskMsg(name, description string, priority task.Priority) tea.Cmd 
         }
     }
 }
+
+type SetTodoTaskMsg struct {
+    tasks   *[]task.Task
+}
+
+type SetProgressTaskMsg struct {
+    tasks   *[]task.Task
+}
+
+type SetDoneTaskMsg struct {
+    tasks   *[]task.Task
+}
