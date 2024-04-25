@@ -80,13 +80,20 @@ func NewProjectBoard(id int, name string, db *sql.DB) *Board {
 
 func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
     return func() tea.Msg {
+        if status == task.InProgress && !today {
+            return nil
+        }
         var tasks []task.Task
         var rows *sql.Rows
         var err error
         if today {
             rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
         } else {
-            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and board_id = ?", status, b.id)
+            if status == task.Done {
+                rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = 2 and board_id = ?", b.id)
+            } else {
+                rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE (status = 0 or status = 1) and board_id = ?", b.id)
+            }
         }
         defer rows.Close()
         if err != nil {
@@ -121,7 +128,10 @@ func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
         case task.InProgress:
             return SetProgressTaskMsg{tasks: &tasks}
         case task.Done:
-            return SetDoneTaskMsg{tasks: &tasks}
+            if today {
+                return SetDoneTaskMsg{tasks: &tasks}
+            }  
+            return SetProgressTaskMsg{tasks: &tasks}
         default:
             log.Print("Unknow status type: ", status)
             return msgs.ErrorMsg{Err: newStatusTypeError(status)}
@@ -268,20 +278,11 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
     case CreateTaskMsg:
         return b, b.createTask(msg.Name, msg.Description, msg.Priority)
     case SetDoneTaskMsg:
-        if len(b.cols) == todayColumnNum {
-            return b, b.cols[task.Done].SetItems(*msg.tasks)
-        }
-        return b, b.cols[task.InProgress].AddItems(*msg.tasks)
+        return b, b.cols[task.Done].SetItems(*msg.tasks)
     case SetProgressTaskMsg:
-        if len(b.cols) == todayColumnNum {
-            return b, b.cols[task.InProgress].SetItems(*msg.tasks)
-        }
-        return b, b.cols[task.Todo].AddItems(*msg.tasks)
+        return b, b.cols[task.InProgress].SetItems(*msg.tasks)
     case SetTodoTaskMsg:
-        if len(b.cols) == todayColumnNum {
-            return b, b.cols[task.Todo].SetItems(*msg.tasks)
-        }
-        return b, b.cols[task.Todo].AddItems(*msg.tasks)
+        return b, b.cols[task.Todo].SetItems(*msg.tasks)
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):
