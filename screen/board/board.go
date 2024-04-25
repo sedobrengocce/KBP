@@ -1,5 +1,4 @@
 // TODO: Move task to another board
-// TODO: Set done date
 package board
 
 import (
@@ -12,6 +11,7 @@ import (
 	dialogComponent "kaban-board-plus/component/dialog/components"
 	"kaban-board-plus/component/task"
 	"log"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -164,19 +164,34 @@ func (b *Board) nextColumn() {
 }
 
 func (b *Board) moveTask() tea.Cmd {
-    if (b.cols[b.focusedColumn].Length() == 0) {
-        return msgs.NewErrorMsg(&emptyColumn{})
-    }
-    nextColumn := (b.focusedColumn + 1) % len(b.cols)
-    selectedTask := b.cols[b.focusedColumn].SelectedItem()
+    return func() tea.Msg {
+        if (b.cols[b.focusedColumn].Length() == 0) {
+            return msgs.ErrorMsg{Err: NewEmptyColumnError()}
+        }
+        nextColumn := (b.focusedColumn + 1) % len(b.cols)
+        selectedTask := b.cols[b.focusedColumn].SelectedItem()
 
-    _, err := b.db.Exec("UPDATE tasks SET status = ? WHERE id = ?", nextColumn, selectedTask.ID())
-    if err != nil {
-        log.Print("Error updating task: ", err)
-        return msgs.NewErrorMsg(&dbError{err: err})
-    }
+        _, err := b.db.Exec("UPDATE tasks SET status = ? WHERE id = ?", nextColumn, selectedTask.ID())
+        if err != nil {
+            log.Print("Error updating task: ", err)
+            return msgs.ErrorMsg{Err: NewDbError(err)}
+        }
+        if nextColumn == int(task.Done) {
+            _, err := b.db.Exec("UPDATE tasks SET done_date = ? WHERE id = ?", time.Now().Local().Format("2006-01-02"), selectedTask.ID())
+            if err != nil {
+                log.Print("Error updating task: ", err)
+                return msgs.ErrorMsg{Err: NewDbError(err)}
+            }
+        } else if nextColumn == int(task.Todo) {
+            _, err := b.db.Exec("UPDATE tasks SET done_date = NULL WHERE id = ?", selectedTask.ID())
+            if err != nil {
+                log.Print("Error updating task: ", err)
+                return msgs.ErrorMsg{Err: NewDbError(err)}
+            }
+        }
 
-    return NewUpdateMsg()
+        return UpdateMsg{}
+    }
 }
 
 func (b *Board) toggleArchive() tea.Cmd {

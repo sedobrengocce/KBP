@@ -1,4 +1,3 @@
-// TODO: Better style for Today task and fro Archived task
 package column
 
 import (
