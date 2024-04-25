@@ -1,3 +1,4 @@
+// TODO: Better style for Today task and fro Archived task
 package column
 
 import (
@@ -49,28 +50,38 @@ func (d projectTaskDelegate) Render(w io.Writer, m list.Model, index int, listIt
     }
 
     priorityString := fmt.Sprintf("%d", t.Priority())
+    todayString := "T"
+    archivedString := "A"
 
-    renderedPriotity := unselectedPPriorityStyle.Render(priorityString)
+    renderedPriority := unselectedPPriorityStyle.Render(priorityString)
     renderedTitle := unselectedPTitleStyle.Render(t.Title())
     renderedDescription := unselectedPDescriptionStyle.Render(t.Description())
-    if t.IsToday() {
-        renderedPriotity = unselectedToday.Render(priorityString)
-    }
+    renderedTodady := unselectedPPriorityStyle.Render(todayString)
+    renderedArchived := unselectedPPriorityStyle.Render(archivedString)
 
     if index == m.Index() {
-        renderedPriotity = selectedPPriorityStyle.Render(priorityString)
-        renderedTitle = selectedPTitleStyle.Width(m.Width()-8).Render(t.Title())
-        renderedDescription = selectedPDescriptionStyle.Width(m.Width()-8).Render(t.Description())
+        margin := 8;
         if t.IsToday() {
-            renderedTitle = selectedPTitleStyle.Width(m.Width()-10).Render(t.Title())
-            renderedDescription = selectedPDescriptionStyle.Width(m.Width()-10).Render(t.Description())
-            renderedPriotity = selectedToday.Render(priorityString)
+            margin += 4
         }
+        if t.IsArchived() {
+            margin += 4
+        }
+        renderedPriority = selectedPPriorityStyle.Render(priorityString)
+        renderedTitle = selectedPTitleStyle.Width(m.Width()-margin).Render(t.Title())
+        renderedDescription = selectedPDescriptionStyle.Width(m.Width()-margin).Render(t.Description())
+        renderedTodady = selectedPPriorityStyle.Render(todayString)
+        renderedArchived = selectedPPriorityStyle.Render(archivedString)
     } 
 
     item := lipgloss.JoinVertical(lipgloss.Left, renderedTitle, renderedDescription)
-    item = lipgloss.JoinHorizontal(lipgloss.Top, renderedPriotity, item)
-
+    item = lipgloss.JoinHorizontal(lipgloss.Top, renderedPriority, item)
+    if t.IsToday() {
+    item = lipgloss.JoinHorizontal(lipgloss.Top, renderedTodady, item)
+    } 
+    if t.IsArchived() {
+    item = lipgloss.JoinHorizontal(lipgloss.Top, renderedArchived, item)
+    }
     fmt.Fprint(w, item)
 }
 
