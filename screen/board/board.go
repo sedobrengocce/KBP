@@ -201,6 +201,9 @@ func (b *Board) toggleArchive() tea.Cmd {
             return msgs.ErrorMsg{Err: NewEmptyColumnError()}
         }
         selectedTask := b.cols[b.focusedColumn].SelectedItem()
+        if selectedTask.Status() != task.Done {
+            return nil
+        }
         _, err := b.db.Exec("UPDATE tasks SET is_archived = ? WHERE id = ?", !selectedTask.IsArchived(), selectedTask.ID())
         if err != nil {
             log.Print("Error updating task: ", err)
@@ -257,6 +260,48 @@ func (b *Board) askNewTask() tea.Cmd {
     return nil
 }
 
+func (b *Board) askDeleteTask() tea.Cmd {
+    if b.cols[b.focusedColumn].Length() == 0 {
+        return nil
+    }
+    item := b.cols[b.focusedColumn].SelectedItem()
+    yesButton := button.NewButton("Yes", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return deleteMsg{id: item.ID()}
+        }
+    })
+    noButton := button.NewButton("No", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return nil
+        }
+    })
+    message := dialogComponent.NewMessage("Are you sure you want to delete " + item.Title() + " task?")
+    noButton.Focus()
+    d := dialog.NewDialog("Delete Task", 
+        []dialog.DialogComponent{message}, 
+        40, 10,
+        []button.Button{
+            *yesButton,
+            *noButton,
+        },
+    )
+    dlg = d
+    return nil
+}
+
+func (b Board) deleteTask(id int) tea.Cmd {
+    return func() tea.Msg {
+        _, err := b.db.Exec("DELETE from tasks WHERE id = ?", id)
+        if err != nil {
+            log.Print("Error dedleting task: ", id)
+            return dbError{err: err}
+        }
+        return UpdateMsg{}
+    }
+}
+
 func (b Board) createTask(name, description string, priority task.Priority) tea.Cmd {
     _, err := b.db.Exec("INSERT INTO tasks (board_id, name, description, priority) VALUES (?,?,?,?)", b.id, name, description, int(priority))
     if err != nil {
@@ -292,6 +337,8 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         return b, b.Init() 
     case CreateTaskMsg:
         return b, b.createTask(msg.Name, msg.Description, msg.Priority)
+    case deleteMsg:
+        return b, b.deleteTask(msg.id)
     case SetDoneTaskMsg:
         return b, b.cols[task.Done].SetItems(*msg.tasks)
     case SetProgressTaskMsg:
@@ -319,7 +366,12 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
             if len(b.cols) == projectColumnNum {
                 return b, b.showHideArchive()
             }
-
+        case key.Matches(msg, keys.ArchiveAll):
+            // TODO: implement archive all
+            panic("not implemented")
+        case key.Matches(msg, keys.Delete):
+            // TODO: implement delete task
+            return b, b.askDeleteTask()
         }
     }
 

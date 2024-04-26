@@ -21,7 +21,9 @@ type keyMap struct {
 	Action  key.Binding
     NewTask key.Binding
     Archive key.Binding
+    ArchiveAll key.Binding
     ShowHideArchive key.Binding
+    Delete  key.Binding
 }
 
 var keys = keyMap{
@@ -55,6 +57,12 @@ var keys = keyMap{
 	),
     ShowHideArchive: key.NewBinding(
         key.WithKeys("ctrl+a"),
+    ),
+    ArchiveAll: key.NewBinding(
+        key.WithKeys("shift+a"),
+    ),
+    Delete: key.NewBinding(
+        key.WithKeys("d"),
     ),
 }
 

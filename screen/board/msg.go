@@ -41,3 +41,7 @@ type SetProgressTaskMsg struct {
 type SetDoneTaskMsg struct {
     tasks   *[]task.Task
 }
+
+type deleteMsg struct {
+    id int
+}
