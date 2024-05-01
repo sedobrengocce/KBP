@@ -194,6 +194,17 @@ func (b *Board) moveTask() tea.Cmd {
     }
 }
 
+func (b *Board) archiveAll() tea.Cmd {
+    return func() tea.Msg {
+        _, err := b.db.Exec("UPDATE tasks SET is_archived = true WHERE board_id = ? and status = 2", b.id)
+        if err != nil {
+            log.Print("Error archiving all tasks: ", err)
+            return msgs.ErrorMsg{Err: NewDbError(err)}
+        }
+        return UpdateMsg{}
+    }
+}
+
 func (b *Board) toggleArchive() tea.Cmd {
     return func() tea.Msg {
         if b.cols[b.focusedColumn].Length() == 0 {
@@ -214,17 +225,19 @@ func (b *Board) toggleArchive() tea.Cmd {
 }
 
 func (b *Board) toggleToday() tea.Cmd {
-    if (b.cols[b.focusedColumn].Length() == 0) {
-        log.Print("Empty column")
-        return msgs.NewErrorMsg(&emptyColumn{})
+    return func() tea.Msg {
+        if (b.cols[b.focusedColumn].Length() == 0) {
+            log.Print("Empty column")
+            return msgs.ErrorMsg{Err: NewEmptyColumnError()}
+        }
+        selectedTask := b.cols[b.focusedColumn].SelectedItem()
+        _, err := b.db.Exec("UPDATE tasks SET is_today = ? WHERE id = ?", !selectedTask.IsToday(), selectedTask.ID())
+        if err != nil {
+            log.Print("Error updating task: ", err)
+            return msgs.ErrorMsg{Err: NewDbError(err)}
+        }
+        return UpdateMsg{}
     }
-    selectedTask := b.cols[b.focusedColumn].SelectedItem()
-    _, err := b.db.Exec("UPDATE tasks SET is_today = ? WHERE id = ?", !selectedTask.IsToday(), selectedTask.ID())
-    if err != nil {
-        log.Print("Error updating task: ", err)
-        return msgs.NewErrorMsg(&dbError{err: err})
-    }
-    return NewUpdateMsg()
 }
 
 func (b *Board) askNewTask() tea.Cmd {
@@ -367,10 +380,8 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
                 return b, b.showHideArchive()
             }
         case key.Matches(msg, keys.ArchiveAll):
-            // TODO: implement archive all
-            panic("not implemented")
+            return b, b.archiveAll()
         case key.Matches(msg, keys.Delete):
-            // TODO: implement delete task
             return b, b.askDeleteTask()
         }
     }
