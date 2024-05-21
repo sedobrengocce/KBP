@@ -314,18 +314,6 @@ func (b* Board) askMoveTaskToBoard() tea.Cmd {
         return nil
     }
     item := b.cols[b.focusedColumn].SelectedItem()
-    yesButton := button.NewButton("Yes", func() tea.Cmd {
-        return func() tea.Msg {
-            closeDialog()
-            return moveTaskToBoardMsg{id: item.ID(), boardId: 0}
-        }
-    })
-    noButton := button.NewButton("No", func() tea.Cmd {
-        return func() tea.Msg {
-            closeDialog()
-            return nil
-        }
-    })
     message := dialogComponent.NewMessage("Please select destination Board")
     radioItems := []dialogComponent.RadioItem[int]{}
     list, err := b.getOtherBoards()
@@ -342,7 +330,19 @@ func (b* Board) askMoveTaskToBoard() tea.Cmd {
         "Boards: ",
         radioItems,
     )
-    noButton.Focus()
+    boardList.Focus()
+    yesButton := button.NewButton("Yes", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return moveTaskToBoardMsg{id: item.ID(), boardId: boardList.GetValue()}
+        }
+    })
+    noButton := button.NewButton("No", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return nil
+        }
+    })
     d := dialog.NewDialog("Move Task", 
         []dialog.DialogComponent{message, boardList}, 
         40, 10,
@@ -392,7 +392,7 @@ func (b Board) deleteTask(id int) tea.Cmd {
 }
 
 func (b Board) moveTaskToBoard(taskid, boardid int) tea.Cmd {
-    _, err := b.db.Exec("UPDATE task SET board_id = ? where id = ?", boardid, taskid)
+    _, err := b.db.Exec("UPDATE tasks SET board_id = ? where id = ?", boardid, taskid)
     if err != nil {
         return func() tea.Msg {
             log.Print("Cannot chage board to task due error: ", err)
@@ -448,7 +448,7 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
     case SetTodoTaskMsg:
         return b, b.cols[task.Todo].SetItems(*msg.tasks)
     case moveTaskToBoardMsg:
-        return b, nil
+        return b, b.moveTaskToBoard(msg.id, msg.boardId)
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):
