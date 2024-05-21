@@ -24,6 +24,7 @@ type keyMap struct {
     ArchiveAll key.Binding
     ShowHideArchive key.Binding
     Delete  key.Binding
+    Move    key.Binding
 }
 
 var keys = keyMap{
@@ -63,6 +64,9 @@ var keys = keyMap{
     ),
     Delete: key.NewBinding(
         key.WithKeys("d"),
+    ),
+    Move: key.NewBinding(
+        key.WithKeys("m"),
     ),
 }
 

@@ -45,3 +45,8 @@ type SetDoneTaskMsg struct {
 type deleteMsg struct {
     id int
 }
+
+type moveTaskToBoardMsg struct {
+    id int
+    boardId int
+}

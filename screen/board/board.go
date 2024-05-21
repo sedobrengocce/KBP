@@ -48,6 +48,11 @@ type Board struct {
     db   *sql.DB
 }
 
+type boardListElement struct {
+    id int
+    name string
+}
+
 func newBoard(id int, name string, db *sql.DB) *Board {
     help := help.New()
     help.ShowAll = false
@@ -304,6 +309,77 @@ func (b *Board) askDeleteTask() tea.Cmd {
     return nil
 }
 
+func (b* Board) askMoveTaskToBoard() tea.Cmd {
+    if b.cols[b.focusedColumn].Length() == 0 {
+        return nil
+    }
+    item := b.cols[b.focusedColumn].SelectedItem()
+    yesButton := button.NewButton("Yes", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return moveTaskToBoardMsg{id: item.ID(), boardId: 0}
+        }
+    })
+    noButton := button.NewButton("No", func() tea.Cmd {
+        return func() tea.Msg {
+            closeDialog()
+            return nil
+        }
+    })
+    message := dialogComponent.NewMessage("Please select destination Board")
+    radioItems := []dialogComponent.RadioItem[int]{}
+    list, err := b.getOtherBoards()
+    if err != nil {
+        return func() tea.Msg {
+            return msgs.ErrorMsg{Err: err}
+        }
+    }
+    for _,l := range list {
+        i := dialogComponent.NewRadioItem(l.name, l.id)
+        radioItems = append(radioItems, *i)
+    }
+    boardList := dialogComponent.NewRadioInput(
+        "Boards: ",
+        radioItems,
+    )
+    noButton.Focus()
+    d := dialog.NewDialog("Delete Task", 
+        []dialog.DialogComponent{message, boardList}, 
+        40, 10,
+        []button.Button{
+            *yesButton,
+            *noButton,
+        },
+    )
+    dlg = d
+    return nil
+}
+
+func (b Board) getOtherBoards() ([]boardListElement, error) {
+    boardList := []boardListElement{}
+
+    var rows *sql.Rows
+    var err error
+    rows, err = b.db.Query("SELECT id, name FROM boards WHERE id != ?", b.id)
+
+    if err != nil {
+        log.Print("Error getting boards: ", err)
+        return boardList, err
+    }
+    for rows.Next() {
+        var id int
+        var name string
+        err = rows.Scan(&id, &name)
+        if err != nil {
+            log.Print("Error scanning row: ", err)
+            return boardList, err
+        }
+        element := boardListElement{id: id, name:name}
+        boardList = append(boardList, element)
+    }
+    return boardList, nil
+}
+
 func (b Board) deleteTask(id int) tea.Cmd {
     return func() tea.Msg {
         _, err := b.db.Exec("DELETE from tasks WHERE id = ?", id)
@@ -311,6 +387,19 @@ func (b Board) deleteTask(id int) tea.Cmd {
             log.Print("Error dedleting task: ", id)
             return dbError{err: err}
         }
+        return UpdateMsg{}
+    }
+}
+
+func (b Board) moveTaskToBoard(taskid, boardid int) tea.Cmd {
+    _, err := b.db.Exec("UPDATE task SET board_id = ? where id = ?", boardid, taskid)
+    if err != nil {
+        return func() tea.Msg {
+            log.Print("Cannot chage board to task due error: ", err)
+            return msgs.ErrorMsg{Err: err}
+        }
+    }
+    return func() tea.Msg {
         return UpdateMsg{}
     }
 }
@@ -358,6 +447,8 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         return b, b.cols[task.InProgress].SetItems(*msg.tasks)
     case SetTodoTaskMsg:
         return b, b.cols[task.Todo].SetItems(*msg.tasks)
+    case moveTaskToBoardMsg:
+        return b, nil
     case tea.KeyMsg:
         switch {
         case key.Matches(msg, keys.Left):
@@ -383,6 +474,8 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
             return b, b.archiveAll()
         case key.Matches(msg, keys.Delete):
             return b, b.askDeleteTask()
+        case key.Matches(msg, keys.Move):
+            return b, b.askMoveTaskToBoard()
         }
     }
 
