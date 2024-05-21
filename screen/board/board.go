@@ -343,7 +343,7 @@ func (b* Board) askMoveTaskToBoard() tea.Cmd {
         radioItems,
     )
     noButton.Focus()
-    d := dialog.NewDialog("Delete Task", 
+    d := dialog.NewDialog("Move Task", 
         []dialog.DialogComponent{message, boardList}, 
         40, 10,
         []button.Button{
