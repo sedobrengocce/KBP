@@ -1,4 +1,3 @@
-// TODO: Move task to another board
 package board
 
 import (
@@ -17,11 +16,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-)
-
-const (
-    todayColumnNum = 3
-    projectColumnNum = 2
 )
 
 const (
@@ -44,6 +38,7 @@ type Board struct {
     focusedColumn int
     height int
     width int
+    isToday bool
     cols []column.Column
     db   *sql.DB
 }
@@ -64,6 +59,7 @@ func newBoard(id int, name string, db *sql.DB) *Board {
         focusedColumn: 0,
         db: db,
         showArchived: false,
+        isToday: false,
     }
 }
 
@@ -72,6 +68,7 @@ func NewTodayBoard(db *sql.DB) *Board {
     b.cols = append(b.cols, *column.NewColumn("To Do", true))
     b.cols = append(b.cols, *column.NewColumn("In Progress", true))
     b.cols = append(b.cols, *column.NewColumn("Done", true))
+    b.isToday = true
     return b
 }
 
@@ -83,64 +80,73 @@ func NewProjectBoard(id int, name string, db *sql.DB) *Board {
     return b
 }
 
-func (b *Board) getTasks(status task.Status, today, archived bool) tea.Cmd {
-    return func() tea.Msg {
-        if status == task.InProgress && !today {
-            return nil
-        }
-        var tasks []task.Task
-        var rows *sql.Rows
-        var err error
-        if today {
-            rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = ? and is_today = true and is_archived = false", status)
-        } else {
-            if status == task.Done {
-                rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE status = 2 and board_id = ?", b.id)
-            } else {
-                rows, err = b.db.Query("SELECT id, name, description, priority, is_archived, is_today FROM tasks WHERE (status = 0 or status = 1) and board_id = ?", b.id)
-            }
-        }
-        defer rows.Close()
+func (b *Board) getTasks(archived bool) ([]task.Task, error) {
+    var tasks []task.Task
+    var rows *sql.Rows
+    var err error
+    if b.isToday {
+        rows, err = b.db.Query("SELECT id, name, description, priority, status, is_archived, is_today FROM tasks WHERE is_today = true and is_archived = false")
+    } else {
+        rows, err = b.db.Query("SELECT id, name, description, priority, status, is_archived, is_today FROM tasks WHERE board_id = ?", b.id)
+    }
+    defer rows.Close()
+    if err != nil {
+        log.Print("Error getting tasks: ", err)
+        return tasks, err
+    }
+    for rows.Next() {
+        var id int
+        var title string
+        var description string
+        var priority int
+        var status int
+        var isArchived bool
+        var isToday bool
+        err = rows.Scan(&id, &title, &description, &priority, &status, &isArchived, &isToday)
         if err != nil {
-            log.Print("Error getting tasks: ", err)
-            return msgs.ErrorMsg{Err: err}
+            log.Print("Error scanning row: ", err)
+            return tasks, err
         }
-        for rows.Next() {
-            var id int
-            var title string
-            var description string
-            var priority int
-            var isArchived bool
-            var isToday bool
-            err = rows.Scan(&id, &title, &description, &priority, &isArchived, &isToday)
-            if err != nil {
-                log.Print("Error scanning row: ", err)
-                return msgs.ErrorMsg{Err: err}
-            }
-            if archived { 
-                t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
+        if archived { 
+            t := task.NewTask(id, title, description, task.Priority(priority), task.Status(status), isArchived, isToday)
+            tasks = append(tasks, t)
+        } else {
+            if !isArchived {
+                t := task.NewTask(id, title, description, task.Priority(priority), task.Status(status), isArchived, isToday)
                 tasks = append(tasks, t)
-            } else {
-                if !isArchived {
-                    t := task.NewTask(id, title, description, task.Priority(priority), status, isArchived, isToday)
-                    tasks = append(tasks, t)
-                }
             }
         }
-        switch status {
+    }
+    return tasks, nil
+}
+
+func (b *Board) setTasks(tasks *[]task.Task) tea.Cmd {
+    tasksDone := []task.Task{}
+    tasksTodo := []task.Task{}
+    tasksInProgress := []task.Task{}
+    for _, t := range *tasks {
+        switch t.Status() {
         case task.Todo:
-            return SetTodoTaskMsg{tasks: &tasks}
+            tasksTodo = append(tasksTodo, t)
         case task.InProgress:
-            return SetProgressTaskMsg{tasks: &tasks}
+            tasksInProgress = append(tasksInProgress, t)
         case task.Done:
-            if today {
-                return SetDoneTaskMsg{tasks: &tasks}
-            }  
-            return SetProgressTaskMsg{tasks: &tasks}
+            tasksDone = append(tasksDone, t)
         default:
-            log.Print("Unknow status type: ", status)
-            return msgs.ErrorMsg{Err: newStatusTypeError(status)}
         }
+    }
+    if b.isToday {
+        return tea.Batch(
+            b.cols[task.Todo].SetItems(tasksTodo),
+            b.cols[task.InProgress].SetItems(tasksInProgress),
+            b.cols[task.Done].SetItems(tasksDone),
+        )
+    } else {
+        composedTodo := append(tasksTodo, tasksInProgress...)
+        return tea.Batch(
+            b.cols[task.Todo].SetItems(composedTodo),
+            b.cols[task.InProgress].SetItems(tasksDone),
+        )
     }
 }
 
@@ -415,19 +421,26 @@ func (b Board) createTask(name, description string, priority task.Priority) tea.
 
 func (b *Board) showHideArchive() tea.Cmd {
     b.showArchived = !b.showArchived
-    return b.getTasks(task.Done, false, b.showArchived)     
+    tasks, err := b.getTasks(b.showArchived)     
+    if err != nil {
+        return func() tea.Msg {
+            return msgs.ErrorMsg{Err: err}
+        }
+    }
+    return b.setTasks(&tasks)
 }
 
 func (b *Board) Init() tea.Cmd {
-    var cmds = []tea.Cmd{}
-    for i := 0; i < int(task.Unknown) ; i++ {
-        cmd := b.getTasks(task.Status(i), len(b.cols) == todayColumnNum, b.showArchived)
-        cmds = append(cmds, cmd)
-    } 
+    tasks, err := b.getTasks(b.showArchived)
+    if err != nil {
+        return func() tea.Msg {
+            return msgs.ErrorMsg{Err: err}
+        }
+    }
     if b.focusedColumn == 0 {
         b.cols[0].Focus()
     }
-    return tea.Batch(cmds...)
+    return b.setTasks(&tasks)
 }
 
 func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
@@ -441,12 +454,6 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         return b, b.createTask(msg.Name, msg.Description, msg.Priority)
     case deleteMsg:
         return b, b.deleteTask(msg.id)
-    case SetDoneTaskMsg:
-        return b, b.cols[task.Done].SetItems(*msg.tasks)
-    case SetProgressTaskMsg:
-        return b, b.cols[task.InProgress].SetItems(*msg.tasks)
-    case SetTodoTaskMsg:
-        return b, b.cols[task.Todo].SetItems(*msg.tasks)
     case moveTaskToBoardMsg:
         return b, b.moveTaskToBoard(msg.id, msg.boardId)
     case tea.KeyMsg:
@@ -456,18 +463,18 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         case key.Matches(msg, keys.Right):
             b.nextColumn()
         case key.Matches(msg, keys.Action):
-            if(len(b.cols) == todayColumnNum) {
+            if b.isToday {
                 return b, b.moveTask()
             } 
             return b, b.toggleToday()
         case key.Matches(msg, keys.NewTask):
-            if(len(b.cols) == projectColumnNum) {
+            if !b.isToday {
                 return b, b.askNewTask()
             }            
         case key.Matches(msg, keys.Archive):
             return b, b.toggleArchive()
         case key.Matches(msg, keys.ShowHideArchive):
-            if len(b.cols) == projectColumnNum {
+            if !b.isToday {
                 return b, b.showHideArchive()
             }
         case key.Matches(msg, keys.ArchiveAll):
@@ -475,7 +482,9 @@ func (b *Board) Update(msg tea.Msg) (component.Screen, tea.Cmd) {
         case key.Matches(msg, keys.Delete):
             return b, b.askDeleteTask()
         case key.Matches(msg, keys.Move):
-            return b, b.askMoveTaskToBoard()
+            if !b.isToday {
+                return b, b.askMoveTaskToBoard()
+            }            
         }
     }
 
