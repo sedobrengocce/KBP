@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"kaban-board-plus/common/utils"
 	"kaban-board-plus/component/task"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -41,14 +42,16 @@ func (d todayTaskDelegate) Render(w io.Writer, m list.Model, index int, listItem
 
     priorityString := fmt.Sprintf("%d", t.Priority())
 
+    description := utils.Ellipsis(t.Description(), m.Width() - 11)
     renderedPriotity := unselectedPriorityStyle.Render(priorityString)
     renderedTitle := unselectedTitleStyle.Render(t.Title())
-    renderedDescription := unselectedDescriptionStyle.Render(t.Description())
+    renderedDescription := unselectedDescriptionStyle.Render(description)
 
     if index == m.Index() {
+        description := utils.Ellipsis(t.Description(), m.Width() - 11)
         renderedPriotity = selectedPriorityStyle.Render(priorityString)
         renderedTitle = selectedTitleStyle.Width(m.Width()-8).Render(t.Title())
-        renderedDescription = selectedDescriptionStyle.Width(m.Width()-8).Render(t.Description())
+        renderedDescription = selectedDescriptionStyle.Width(m.Width()-8).Render(description)
     } 
 
     item := lipgloss.JoinVertical(lipgloss.Left, renderedTitle, renderedDescription)

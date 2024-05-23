@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"io"
+	"kaban-board-plus/common/utils"
 	"kaban-board-plus/component/task"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -52,23 +53,25 @@ func (d projectTaskDelegate) Render(w io.Writer, m list.Model, index int, listIt
     todayString := "T"
     archivedString := "A"
 
+    margin := 8;
+    if t.IsToday() {
+        margin += 4
+    }
+    if t.IsArchived() {
+        margin += 4
+    }
+    description := utils.Ellipsis(t.Description(), m.Width() - margin - 3)
     renderedPriority := unselectedPPriorityStyle.Render(priorityString)
     renderedTitle := unselectedPTitleStyle.Render(t.Title())
-    renderedDescription := unselectedPDescriptionStyle.Render(t.Description())
+    renderedDescription := unselectedPDescriptionStyle.Render(description)
     renderedTodady := unselectedPPriorityStyle.Render(todayString)
     renderedArchived := unselectedPPriorityStyle.Render(archivedString)
 
     if index == m.Index() {
-        margin := 8;
-        if t.IsToday() {
-            margin += 4
-        }
-        if t.IsArchived() {
-            margin += 4
-        }
+
         renderedPriority = selectedPPriorityStyle.Render(priorityString)
         renderedTitle = selectedPTitleStyle.Width(m.Width()-margin).Render(t.Title())
-        renderedDescription = selectedPDescriptionStyle.Width(m.Width()-margin).Render(t.Description())
+        renderedDescription = selectedPDescriptionStyle.Width(m.Width()-margin).Render(description)
         renderedTodady = selectedPPriorityStyle.Render(todayString)
         renderedArchived = selectedPPriorityStyle.Render(archivedString)
     } 

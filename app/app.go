@@ -1,5 +1,4 @@
 // TODO: Refactor Help for entire app
-// FIX: ellipsis on long description
 // TODO: task dialog 
 package app
 
